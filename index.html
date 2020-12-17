@@ -1,0 +1,799 @@
+<!-- Created by r8w9
+       shared by yeabsera wondesen -->
+
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Page Title</title>
+    </head>
+    <body oncontextmenu="return false;">
+        <canvas id="canvas"></canvas>
+    </body>
+</html>
+
+
+
+<style>
+@import url('https://fonts.googleapis.com/css?family=Press+Start+2P&display=swap');
+body {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  background-color: black;
+  -webkit-user-select: none; /* Safari 3.1+ */
+  -moz-user-select: none; /* Firefox 2+ */
+  -ms-user-select: none; /* IE 10+ */
+  user-select: none; /* Standard syntax */
+}
+</style>
+
+ 
+ <script>
+document.querySelector(".loadingOverlay").style.display = "none";
+ 
+
+*/
+"use strict";
+///////////////////////////////////
+//////////// UTILITIES ////////////
+///////////////////////////////////
+
+
+// Selector
+const id = (arg) => document.getElementById(arg);
+
+// Short console.log
+const log = console.log;
+
+// Dirty error handling
+const stoperror = () => {
+  return true;
+}; window.onerror = stoperror;
+
+///////////////////////////////////
+//////////// UTILITIES ////////////
+///////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+//////////// ONLOAD INITIALIZATION ////////////
+///////////////////////////////////////////////
+
+window.onload = () => {
+    
+// Canvas initialization (-5) for optimal height    
+let canvas = id("canvas");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight - 5;
+let c = canvas.getContext("2d");
+
+///////////////////////////////////////////////
+//////////// ONLOAD INITIALIZATION ////////////
+///////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+//////////// PLAYER OBJECT NOTATION ///////////
+///////////////////////////////////////////////
+
+class Player {
+  constructor(x, y, width, height) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.speed = 4;
+  }
+  
+  // Shoot method
+  shoot() {
+    bullets.push(new Bullet(this.x + this.width/2 - 2, this.y - 10, 4, 8, "PLAYER"));
+  }
+  
+  // Spawn enemy method
+  spawnEnemy() {
+    enemies.push(new Enemy(Math.random() * canvas.width, -30, 20, 20));
+  }
+  
+  // Spawn star method
+  spawnStar(){
+    stars.push(new Star(Math.random() * canvas.width, -30));
+  }
+  
+  // Reset function
+  reset() {
+    this.x = canvas.width/2 - 15;
+    this.y = canvas.height - 32;
+    enemies.length = 0;
+    bullets.length = 0;
+    score.HP = 100;
+    score.score = 0;
+    // Set enemyCooldown back to 2000ms
+    enemyCooldown = 2000;
+    boss.show = true;
+    right_down = left_down = false;
+  }
+  
+  // Draw method
+  draw() {
+    c.beginPath();
+    c.save();
+    c.fillStyle = "white";
+    // Body
+    c.rect(this.x, this.y, this.width, this.height);
+    // Shoulders
+    c.rect(this.x + 3, this.y, this.width, 4);
+    c.rect(this.x - 3, this.y, this.width, 4);
+    // Cannon
+    c.rect(this.x + this.width/2 - 3, this.y - 6, 6, 6);
+    // Legs
+    c.rect(this.x + this.width, this.y + this.height-10, 10, 10);
+    c.rect(this.x - this.width/2 + 5, this.y + this.height-10, 10, 10);
+
+    
+    c.fill();
+    c.restore();
+    c.closePath();
+    
+    
+    // Boundaries  
+    if(this.x + this.width > canvas.width) { this.x = canvas.width - this.width; } // Right  
+    if(this.x < 0) { this.x = 0; } // Left
+    if(this.y + this.height > canvas.height) { this.y = canvas.height - this.height; } // Bottom
+    if(this.y < 0) { this.y = 0; } // Top
+    
+    // Movement
+    if(right_down) {
+      this.x += this.speed;
+    }
+    if(left_down) {
+      this.x -= this.speed;
+    }
+    
+    // Reset function
+    if(score.HP <= 0) {
+      log("You DED!\nYour score was " + score.score);
+      this.reset();
+    }
+    
+    
+    // Collision between BOSS bullet and PLAYER object
+    for(let b = bossBullets.length - 1; b >= 0; b--) {
+      if(collision (this, bossBullets[b]) ) {
+        bossBullets.splice(b, 1);
+        score.HP -= 10;
+      }
+    }
+    
+  }
+  
+  // Call draw method
+  update(){
+    this.draw();
+  }
+}
+
+// New player object
+let player = new Player(canvas.width/2 - 15, canvas.height - 32, 30, 30);
+
+///////////////////////////////////////////////
+//////////// PLAYER OBJECT NOTATION ///////////
+///////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+///////////// SCORE OBJECT NOTATION ///////////
+///////////////////////////////////////////////
+
+class Score {
+  constructor() {
+    this.x = 5;
+    this.y = 30;
+    this.HP = 100;
+    this.score = 0;
+  }
+  
+  draw() {
+    c.fillStyle = "white";
+    c.font = "1em 'Press Start 2P', cursive";
+    c.fillText("SCORE: " + this.score, this.x, this.y);
+    c.fillText("HP: " + this.HP, this.x + canvas.width - 125, this.y);
+  }
+  
+  update() {
+    this.draw();
+  }
+}
+
+var score = new Score();
+
+///////////////////////////////////////////////
+///////////// SCORE OBJECT NOTATION ///////////
+///////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+//////////// BULLET OBJECT NOTATION ///////////
+///////////////////////////////////////////////
+
+// Array for bullets
+var bullets = [];
+var bossBullets = [];
+
+class Bullet {
+  constructor(x, y, width, height, ID) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.speed = 6;
+    this.ID = ID;
+  }
+  
+  // Draw method
+  draw() {
+    c.beginPath();
+    c.save();
+    c.fillStyle = "white";
+    c.rect(this.x, this.y, this.width, this.height);
+    c.fill();
+    c.restore();
+    c.closePath();
+    
+    // Move bullets
+    this.ID == "PLAYER"? this.speed = -6: this.speed = 6;
+    this.ID == "BOSS"?   this.speed = 6: this.speed = -6;
+    this.y += this.speed;
+    
+    // If bullet is above screen then splice it
+    for(let b = bullets.length - 1; b >= 0; b--) {
+      if(bullets[b].y < 0 || bullets[b] > canvas.height + 50) {
+        bullets.splice(b, 1);
+      }
+    }
+
+
+  }
+  
+  // Call draw method
+  update(){
+    this.draw();
+  }
+}
+
+///////////////////////////////////////////////
+//////////// BULLET OBJECT NOTATION ///////////
+///////////////////////////////////////////////
+
+
+
+
+///////////////////////////////////////////////
+//////////// ENEMY OBJECT NOTATION ////////////
+///////////////////////////////////////////////
+
+// Array for enemies
+var enemies = [];
+
+class Enemy {
+  constructor(x, y, width, height) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.speed = Math.random() * 3;
+  }
+  
+  // Draw method
+  draw() {
+    c.beginPath();
+    c.save();
+    c.fillStyle = "white";
+    // Body
+    c.rect(this.x, this.y, this.width, this.height);
+    // Cannon
+    c.rect(this.x + this.width/2 - 2.5, this.y + this.height, 5, 5);
+    // Shoulders
+    c.rect(this.x + 2, this.y + this.height, this.width, 2);
+    c.rect(this.x - 2, this.y + this.height, this.width, 2);
+    // Legs
+    c.rect(this.x + 4, this.y, this.width, 6);
+    c.rect(this.x - 4, this.y, this.width, 6);
+    
+    c.fill();
+    c.restore();
+    c.closePath();
+
+    // Boundaries (with 5 because enemy is little bit bigger 
+    if(this.x + this.width + 5 > canvas.width) { this.x = canvas.width - this.width - 5; } // Right  
+    if(this.x < 0) { this.x = 5; } // Left
+    
+    // Move enemy
+    this.y += this.speed;
+    
+    
+  // Collisions between enemies and bullets
+  for(let e = enemies.length - 1; e >= 0; e--) {
+  // If enemy is below screen then splice it
+  if(enemies[e].y > canvas.height + 50) {
+    enemies.splice(e, 1);
+    score.HP -= 10;
+  }
+    for(let b = bullets.length - 1; b >= 0; b--) {
+      if(collision (enemies[e], bullets[b]) ) {
+        enemies.splice(e, 1);
+        bullets.splice(b, 1);
+        score.score++;
+      }
+    }
+  }
+
+    
+  }
+  
+  // Call draw method
+  update() {
+    this.draw();
+  }
+}
+
+///////////////////////////////////////////////
+//////////// ENEMY OBJECT NOTATION ////////////
+///////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+///////////// BOSS OBJECT NOTATION ////////////
+///////////////////////////////////////////////
+
+class Boss {
+  constructor() {
+    this.x = canvas.width / 2;
+    this.y = 20;
+    this.width = 30;
+    this.height = 30;
+    this.speed = 1;
+    this.show = true;
+  }
+  
+  // Shoot
+  shoot() {
+    bossBullets.push(new Bullet(this.x + this.width/2 - 2, this.y + 10, 4, 8, "BOSS"));    
+  }
+
+  
+  // Draw method
+  draw() {
+    c.beginPath();
+    c.save();
+    c.fillStyle = "white";
+    // Body
+    c.rect(this.x, this.y, this.width, this.height);
+    // Cannon
+    c.rect(this.x + this.width/2 - 2.5, this.y + this.height, 5, 5);
+    // Shoulders
+    c.rect(this.x + 2, this.y + this.height, this.width, 2);
+    c.rect(this.x - 2, this.y + this.height, this.width, 2);
+    // Legs
+    c.rect(this.x + 4, this.y, this.width, 6);
+    c.rect(this.x - 4, this.y, this.width, 6);
+    c.fill();
+    c.restore();
+    c.closePath();
+    
+    // Boundaries (with 5 because enemy is little bit bigger 
+    if(this.x + this.width + 5 > canvas.width) { this.x = canvas.width - this.width - 5; } // Right  
+    if(this.x < 0) { this.x = 5; } // Left
+    
+    // AI movement
+    if(this.x >= player.x + 5) { // +5 for smooth transition
+      this.x -= this.speed;
+    }
+    else if (this.x <= player.x) {
+      this.x += this.speed;
+    }
+    
+    
+    
+    // Collisions between PLAYERS'S BULLETS AND BOSS OBJECT
+    for(let b = bullets.length - 1; b >= 0; b--) {
+      if(collision (this, bullets[b]) ) {
+        bullets.splice(b, 1);
+        score.score += 100;
+        // Hide boss
+        this.show = false;
+      }
+    }
+
+
+  } // End of draw method
+  
+  // Call draw method
+  update() {
+    this.draw();
+  }
+}
+
+let boss = new Boss();
+
+///////////////////////////////////////////////
+///////////// BOSS OBJECT NOTATION ////////////
+///////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+//////////// STARS OBJECT NOTATION ////////////
+///////////////////////////////////////////////
+
+// Array for stars
+let stars = [];
+
+class Star {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+  }
+  
+  // Draw star method
+  draw() {
+    c.beginPath();
+    c.save();
+    c.fillStyle = "lightgrey"; //"#F0E68C";
+    c.font = "1em Arial";
+    c.fillText("*", this.x, this.y);
+    c.restore();
+    c.closePath();
+    
+    // Movement
+    this.y += 0.3;
+    
+    // If star is below screen then splice it
+    for(let s = stars.length - 1; s >= 0; s--) {
+      if(stars[s].y > canvas.height + 50) {
+        stars.splice(s, 1);
+      }
+    }
+    
+  }
+  
+  // Call draw method
+  update() {
+    this.draw();
+  }
+}
+
+
+///////////////////////////////////////////////
+//////////// STARS OBJECT NOTATION ////////////
+///////////////////////////////////////////////
+
+
+
+///////////////////////////////////////////////
+//////////// CONTROLS OBJECT NOTATION /////////
+///////////////////////////////////////////////
+
+class Controls {
+  constructor(x, y, width, height, dir) {
+    this.x = x;
+    this.y = y;
+    this.width = width;
+    this.height = height;
+    this.dir = dir;
+  }
+  
+  // Draw controls (left and right)
+  draw() {
+    c.beginPath();
+    c.rect(this.x, this.y, this.width, this.height);
+    
+    const m = 10,
+          w = this.width-2*m,
+          h = this.height-2*m,
+          d = h/2,
+          t = 12, // tail thickness => tail is =
+          x = this.x, y = this.y;
+    
+    // Left arrow
+    if(this.dir === "left"){
+      c.save();
+      c.fillStyle = "rgba(250, 250, 250, 0.6)";
+      c.strokeStyle = "rgba(250, 250, 250, 0.9)";
+      //c.fill();
+      c.lineWidth = 0.5;
+      c.stroke();
+      c.beginPath();
+      c.moveTo(x+m,y+h/2+m);
+      c.lineTo(x+m+d,y+m);
+      c.lineTo(x+m+d,y+h/2+m-t/2);
+      c.lineTo(x+m+d+w-d,y+h/2+m-t/2);
+      c.lineTo(x+m+d+w-d,y+h/2+m+t/2);
+      c.lineTo(x+m+d,y+h/2+m+t/2);
+      c.lineTo(x+m+d,y+h+m);
+      c.lineTo(x+m,y+h/2+m);
+      c.fill();
+      c.restore();
+      c.closePath();
+    }
+    
+    // Right arrow
+    else if(this.dir === "right"){
+      c.save();
+      c.fillStyle = "rgba(250, 250, 250, 0.6)";
+      c.strokeStyle = "rgba(250, 250, 250, 0.9)";
+      //c.fill();
+      c.lineWidth = 0.5;
+      c.stroke();
+      c.beginPath();
+      c.moveTo(x+w+m,y+h/2+m);
+      c.lineTo(x+w+m-d,y+m);
+      c.lineTo(x+w+m-d,y+h/2+m-t/2);
+      c.lineTo(x+m,y+h/2+m-t/2);
+      c.lineTo(x+m,y+h/2+m+t/2);
+      c.lineTo(x+m+w-d,y+h/2+m+t/2);
+      c.lineTo(x+m+w-d,y+h+m);
+      c.lineTo(x+w+m,y+h/2+m);
+      c.fill();
+      c.restore();
+      c.closePath();
+    }
+    
+  }
+  
+  // Call draw method
+  update() {
+    this.draw();
+  }
+  
+  
+}
+
+// Draw Controls objects
+let left  = new Controls(5, canvas.height - 50, 80, 50, "left");    
+let right = new Controls(canvas.width - 85, canvas.height - 50, 80, 50, "right");
+
+///////////////////////////////////////////////
+//////////// CONTROLS OBJECT NOTATION /////////
+///////////////////////////////////////////////
+
+
+
+/////////////////////////////////////////////
+//////////////// COL DETECTION //////////////
+/////////////////////////////////////////////
+
+function collision (a, b)  {
+  return a.x < b.x + b.width &&
+         a.x + a.width > b.x &&
+         a.y < b.y + b.height &&
+         a.y + a.height > b.y;
+}
+
+function collision2(a, b) {
+  return a.x - a.width/2 < b.x + b.width &&
+         a.x + a.width/2 > b.x &&
+         a.y < b.y + b.height &&
+         a.y + a.height > b.y;
+}
+
+/////////////////////////////////////////////
+//////////////// COL DETECTION //////////////
+/////////////////////////////////////////////
+
+
+
+
+/////////////////////////////////////////////
+/////////////// TOUCH OBJECT ////////////////
+/////////////////////////////////////////////
+
+// Flags for touches 
+let right_down, left_down;
+
+// Touch function to get touch position
+const getTouchXY = (e) => {
+ right_down = left_down = false;
+  for(let i = 0; i < e.changedTouches.length; i++) {
+    let x = e.touches[i].clientX,
+        y = e.touches[i].clientY,
+        t = {x: x, y: y, width: 10, height: 10};
+            
+    if(collision2(t,right)) right_down = true;
+    if(collision2(t,left))  left_down = true;
+    }
+};
+
+
+// Stop Touch function
+const stopTouchXY = (e) => {
+  let x = e.changedTouches[0].clientX,
+      y = e.changedTouches[0].clientY,
+      t = {x: x, y: y, width: 10, height: 10},
+      rc = collision2(t, right),
+      lc = collision2(t, left);
+        
+  if(rc) { right_down = false; }
+  if(lc) { left_down = false; }
+};
+
+/////////////////////////////////////////////
+/////////////// TOUCH OBJECT ////////////////
+/////////////////////////////////////////////
+
+
+
+/////////////////////////////////////////////
+////////////////// CONTROLS /////////////////
+/////////////////////////////////////////////
+
+const keyBoardL = (e) => {
+  if(e.keyCode == 37){
+    left_down = true;
+  }
+};
+
+const stopKeyBoardL = (e) => {
+  if(e.keyCode == 37){
+    left_down = false;
+  }
+};
+
+const keyBoardR = (e) => {
+  if(e.keyCode == 39){
+    right_down = true;
+  }
+};
+
+const stopKeyBoardR = (e) => {
+  if(e.keyCode == 39){
+    right_down = false;
+  }
+};
+
+/////////////////////////////////////////////
+////////////////// CONTROLS /////////////////
+/////////////////////////////////////////////
+
+
+
+/////////////////////////////////////////////
+///////////////// LISTENERS /////////////////
+/////////////////////////////////////////////
+
+window.addEventListener("touchstart",  getTouchXY);
+window.addEventListener("touchmove",   getTouchXY);
+window.addEventListener("touchend",    stopTouchXY);
+window.addEventListener("touchcancel", stopTouchXY);
+window.addEventListener("keydown",     keyBoardL);
+window.addEventListener("keyup",       stopKeyBoardL);
+window.addEventListener("keydown",     keyBoardR);
+window.addEventListener("keyup",       stopKeyBoardR);
+
+/////////////////////////////////////////////
+///////////////// LISTENERS /////////////////
+/////////////////////////////////////////////
+
+
+
+//////////////////////////////////////////  
+//////////// G A M E  L O O P ////////////
+//////////////////////////////////////////
+
+let lastTime = 0;
+let lastTime1 = 0;
+let lastTime2 = 0;
+let lastTime3 = 0;
+let lastTime4 = 0;
+let enemyCooldown = 2000;
+
+const GAMELOOP = (currentTime) => {
+  window.requestAnimationFrame(GAMELOOP);
+  c.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Update Stars
+  for(let s of stars) {
+    s.update();
+  }
+  
+  // Draw controls
+  left.update();
+  right.update();
+  
+  // Draw bullets
+  for(let b of bullets) {
+    b.update();
+  }
+  // Draw bossBullets
+  for(let b of bossBullets) {
+    b.update();
+  }
+  
+  // Draw enemies
+  for(let e = enemies.length - 1; e >= 0; e--) {
+    enemies[e].update();
+  }
+  
+  // Update HP and score
+  score.update();
+ 
+  // Spawn star timing
+  if(currentTime > lastTime2 + 1000) {
+    player.spawnStar();
+    lastTime2 = currentTime;
+  }
+  
+  // Shoot timing
+  if(currentTime > lastTime + 450) {
+    player.shoot();
+    lastTime = currentTime;
+  }
+  
+  // Spawn enemy timing
+  // (enemyCooldown -= 0.01 sligtly decreases cooldown of spawning)
+  if(currentTime > lastTime1 + ( enemyCooldown -= 0.5 )) {
+    player.spawnEnemy();
+    lastTime1 = currentTime;
+  }
+  
+  if(enemyCooldown <= 600) {
+    enemyCooldown = 600;
+  }
+
+  if(score.HP <= 20 && boss.show) {
+    boss.update();
+    enemies.length = 0;
+      // Shoot timing
+      if(currentTime > lastTime3 + 450) {
+        boss.shoot();
+        lastTime3 = currentTime;
+      }
+  }
+ 
+  
+  //log(enemyCooldown);
+ /* 
+  // If game runs n secs
+  if(currentTime > 10000) {
+    enemyCooldown = 1800;
+  }
+  if(currentTime > 15000) {
+    enemyCooldown = 1600;
+  }  
+  if(currentTime > 20000) {
+    enemyCooldown = 1400;
+  }  
+  if(currentTime > 30000) {
+    enemyCooldown = 1200;
+  }    
+  if(currentTime > 40000) {
+    enemyCooldown = 1000;
+  }   
+  if(currentTime > 50000) {
+    enemyCooldown = 1000;
+  }   
+  if(currentTime > 60000) {
+    enemyCooldown = 800;
+  }   
+  if(currentTime > 80000) {
+    enemyCooldown = 600;
+  }   
+  */
+  // Draw player
+  player.update();
+  
+};
+
+GAMELOOP();
+
+//////////////////////////////////////////  
+//////////// G A M E  L O O P ////////////
+//////////////////////////////////////////
+
+}; // End of onload
+</script>
